@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import cartIcon from "./assets/icons/cart_tower.svg";
 import {
   armAudioOnce,
@@ -8,6 +8,8 @@ import {
 import "./App.css";
 
 function App() {
+  const [isPulsing, setIsPulsing] = useState(true);
+
   useEffect(() => {
     const detach = attachAudioArmingListeners();
     return () => detach?.();
@@ -16,7 +18,8 @@ function App() {
   const handleBuy = () => {
     // Fire arming in the same gesture path; no await to keep iOS autoplay happy.
     void armAudioOnce();
-    triggerPurchaseOverlay(true);
+    setIsPulsing(false);
+    void triggerPurchaseOverlay(true).finally(() => setIsPulsing(true));
   };
 
   return (
@@ -31,7 +34,9 @@ function App() {
         <button
           type="button"
           onClick={handleBuy}
-          className="px-10 py-4 text-2xl font-semibold tracking-wide text-black bg-white border border-white/20 rounded-3xl shadow-[0_10px_26px_rgba(255,255,255,0.14),0_20px_48px_rgba(255,255,255,0.17)] transition-all duration-150 ease-out hover:-translate-y-[1px] hover:shadow-[0_14px_34px_rgba(255,255,255,0.26),0_28px_64px_rgba(255,255,255,0.2)] active:translate-y-[1px] active:shadow-[0_8px_22px_rgba(255,255,255,0.2),0_18px_42px_rgba(255,255,255,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 animate-pulse-scale disabled:opacity-55 disabled:shadow-none disabled:translate-y-0 disabled:cursor-not-allowed disabled:animate-none"
+          className={`px-10 py-4 text-2xl font-semibold tracking-wide text-black bg-white border border-white/20 rounded-3xl shadow-[0_6px_16px_rgba(255,255,255,0.12),0_12px_28px_rgba(255,255,255,0.14)] transition-all duration-150 ease-out hover:-translate-y-[1px] hover:shadow-[0_9px_24px_rgba(255,255,255,0.2),0_18px_38px_rgba(255,255,255,0.18)] active:translate-y-[1px] active:shadow-[0_6px_16px_rgba(255,255,255,0.12),0_12px_28px_rgba(255,255,255,0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
+            isPulsing ? "animate-pulse-scale" : ""
+          } disabled:opacity-55 disabled:shadow-none disabled:translate-y-0 disabled:cursor-not-allowed disabled:animate-none`}
         >
           Покупаю!
         </button>

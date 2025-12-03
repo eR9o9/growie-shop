@@ -132,16 +132,20 @@ let htmlAudio: HTMLAudioElement | null = null;
 
 export async function armAudioOnce() {
   if (audioArmed) return;
-  const el = ensureHtmlAudio();
+  // Prepare main element without touching playback state.
+  ensureHtmlAudio();
+  // Use a separate, disposable element to satisfy autoplay policies without
+  // interfering with the primary playback element.
+  const unlockEl = createHtmlAudio();
   try {
     // Unlock HTMLAudio as well: play muted once and reset.
-    const prevMuted = el.muted;
-    el.muted = true;
-    el.currentTime = 0;
-    await el.play();
-    el.pause();
-    el.currentTime = 0;
-    el.muted = prevMuted;
+    const prevMuted = unlockEl.muted;
+    unlockEl.muted = true;
+    unlockEl.currentTime = 0;
+    await unlockEl.play();
+    unlockEl.pause();
+    unlockEl.currentTime = 0;
+    unlockEl.muted = prevMuted;
   } catch {
     // ignore
   }
@@ -203,9 +207,23 @@ function ensureHtmlAudio() {
   return htmlAudio;
 }
 
-function tryInlinePlay(): boolean {
+async function tryInlinePlay(): Promise<boolean> {
   try {
     const el = ensureHtmlAudio();
+    el.pause();
+    el.currentTime = 0;
+    el.muted = false;
+    await el.play();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function tryInlinePlaySync(): boolean {
+  try {
+    const el = ensureHtmlAudio();
+    el.pause();
     el.currentTime = 0;
     el.muted = false;
     const playPromise = el.play();
@@ -329,18 +347,33 @@ export function triggerPurchaseOverlay(forceImmediateSound = false) {
   adjustOverlayScale(container);
   const onResize = () => adjustOverlayScale(container);
   window.addEventListener("resize", onResize);
-  const inlinePlayed = forceImmediateSound ? tryInlinePlay() : false;
-  if (!inlinePlayed) {
-    void playSound();
-  }
+  // Try an immediate synchronous play first (helps strict mobile browsers), then fall back.
+  const immediatePlayed = forceImmediateSound ? tryInlinePlaySync() : false;
+  // Try inline play and fall back to the multi-path player if it fails (e.g. first tap).
+  void (async () => {
+    const inlinePlayed = immediatePlayed
+      ? true
+      : forceImmediateSound
+      ? await tryInlinePlay()
+      : false;
+    if (!inlinePlayed) {
+      await playSound();
+    }
+  })();
 
-  const cleanup = () => {
-    window.removeEventListener("resize", onResize);
-    container.remove();
-  };
+  return new Promise<void>((resolve) => {
+    let cleaned = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      window.removeEventListener("resize", onResize);
+      container.remove();
+      resolve();
+    };
 
-  setTimeout(() => {
-    container.classList.add(`${PREFIX}hide`);
-    setTimeout(cleanup, 20000);
-  }, 5000);
+    setTimeout(() => {
+      container.classList.add(`${PREFIX}hide`);
+      setTimeout(cleanup, 20000);
+    }, 5000);
+  });
 }

@@ -7,13 +7,15 @@
     transform: scale(1);
   }
   50% {
-    transform: scale(1.03);
+    transform: scale(1.07);
+    filter: saturate(1.15);
   }
   100% {
     transform: scale(1);
+    filter: saturate(1);
   }
 }
 
 .animate-pulse-scale {
-  animation: pulse-scale 1.8s ease-in-out infinite;
+  animation: pulse-scale 1.4s ease-in-out infinite;
 }
